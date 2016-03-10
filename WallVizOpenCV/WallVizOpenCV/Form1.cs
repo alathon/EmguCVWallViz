@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using FlyCapture2Managed;
 using Emgu.CV.Cvb;
 using System.Windows.Threading;
+using System.Threading;
 
 namespace WallVizOpenCV
 {
@@ -30,6 +31,7 @@ namespace WallVizOpenCV
         private CvBlobs blobs = new CvBlobs();
         private DispatcherTimer uiTimer;
         float[] times = new float[] { 0f, 0f, 0f, 0f, 0f };
+        private Thread processingThread;
 
         private void filterImage(Emgu.CV.Image<Gray, Byte> img, int kernelSize, Gray minGray, Gray maxGray) {
             img._SmoothGaussian(kernelSize);
@@ -50,6 +52,7 @@ namespace WallVizOpenCV
                 stopwatch.Restart();
                 cam.RetrieveBuffer(mImage);
                 times[0] = stopwatch.ElapsedMilliseconds;
+
                 unsafe
                 {
                     IntPtr p = (IntPtr)mImage.data;
