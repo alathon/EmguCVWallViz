@@ -15,6 +15,7 @@ namespace WallVizOpenCV
         private ManagedPGRGuid guid;
         private ManagedBusManager busMgr;
         private bool softwareTrigger = true;
+        public bool Ready { get; private set; }
 
         static void PrintCameraInfo(CameraInfo camInfo)
         {
@@ -29,12 +30,41 @@ namespace WallVizOpenCV
             Console.WriteLine(newStr);
         }
 
+        void OnProcessExit(object sender, EventArgs e)
+        {
+            this.Dispose();
+        }
+
         private void ConnectToCamera()
         {
             uint numCameras = busMgr.GetNumOfCameras();
             Console.WriteLine("Number of cameras: {0}", numCameras);
             guid = busMgr.GetCameraFromIndex(0);
+
+            // Connect.
             cam.Connect(guid);
+            //cam.StopCapture();
+            
+            // Power on the camera
+            const uint k_cameraPower = 0x610;
+            const uint k_powerVal = 0x80000000;
+            cam.WriteRegister(k_cameraPower, k_powerVal);
+
+            const Int32 k_millisecondsToSleep = 100;
+            uint regVal = 0;
+
+            // Wait for camera to complete power-up
+            do
+            {
+                System.Threading.Thread.Sleep(k_millisecondsToSleep);
+                regVal = cam.ReadRegister(k_cameraPower);
+            } while ((regVal & k_powerVal) == 0);
+
+            Console.WriteLine("Camera powered on.");
+            // Attach dispose to software exit.
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
+
+            // Print camera info.
             CameraInfo camInfo = cam.GetCameraInfo();
             PrintCameraInfo(camInfo);
         }
@@ -65,18 +95,14 @@ namespace WallVizOpenCV
             cam.SetTriggerMode(triggerMode);
         }
 
-        private void Configure()
+        private void SetFormat7Settings()
         {
-            SetTriggerMode();
-            // Get the camera configuration
-            FC2Config config = cam.GetConfiguration();
+            Format7ImageSettings currSettings = new Format7ImageSettings();
+            uint currPacketSize = 0;
+            float percentage = 0f;
+            cam.GetFormat7Configuration(currSettings, ref currPacketSize, ref percentage);
 
-            // Set the grab timeout to 5 seconds
-            // TODO: What is grab timeout??? -- Martin
-            config.grabTimeout = 5000;
-            // Set the camera configuration
-            cam.SetConfiguration(config);
-
+            
             Format7ImageSettings settings = new Format7ImageSettings();
             settings.mode = Mode.Mode0;
             settings.offsetX = 512;
@@ -85,9 +111,34 @@ namespace WallVizOpenCV
             settings.height = 1024;
             settings.pixelFormat = PixelFormat.PixelFormatMono8;
 
+            bool needRestart = true;
+            try
+            {
+                cam.StopCapture();
+            }
+            catch (FC2Exception ex)
+            {
+                if (ex.Type == ErrorType.IsochNotStarted)
+                {
+                    // This means the camera was stopped and therefore we
+                    // do not need to restart it
+                    needRestart = false;
+                }
+            }
+
             bool supported = true;
             Format7Info info = cam.GetFormat7Info(Mode.Mode0, ref supported);
-            cam.SetFormat7Configuration(settings, info.maxPacketSize);
+
+            try
+            {
+                cam.SetFormat7Configuration(settings, info.maxPacketSize);
+            }
+            catch (FC2Exception settingFormat7Exception)
+            {
+                Console.WriteLine(settingFormat7Exception);
+                Console.WriteLine("Error setting Format 7 settings. Returning to previous settings.");
+                cam.SetFormat7Configuration(currSettings, percentage);
+            }
 
             Format7ImageSettings f7Settings = new Format7ImageSettings();
             float pSpeed = info.percentage;
@@ -95,41 +146,90 @@ namespace WallVizOpenCV
             cam.GetFormat7Configuration(f7Settings, ref pSize, ref pSpeed);
             Console.WriteLine("Height: {0} Width: {1} OffsetX: {2} OffsetY: {3} Mode: {4}", f7Settings.height, f7Settings.width, f7Settings.offsetX, f7Settings.offsetY, f7Settings.mode);
 
-            CameraProperty exposure = new CameraProperty();
-            exposure.type = PropertyType.AutoExposure;
+            if (needRestart)
+            {
+                try
+                {
+                    cam.StartCapture();
+                }
+                catch (FC2Exception ex)
+                {
+                    Console.WriteLine("Error restarting camera capture: {0}", ex);
+                }
+            }
+        }
+
+        private void SetGrabTimeout()
+        {
+            // Get the camera configuration
+            FC2Config config = cam.GetConfiguration();
+            // Set the grab timeout to 5 seconds
+            config.grabTimeout = 5000;
+            // Set the camera configuration
+            cam.SetConfiguration(config);
+        }
+
+        private void Configure()
+        {
+            SetTriggerMode();
+            SetFormat7Settings();
+            SetGrabTimeout();
+            SetProperties();
+            PollForTriggerReady();
+        }
+
+        private void SetProperties()
+        {
+            CameraProperty exposure = cam.GetProperty(PropertyType.AutoExposure);
             exposure.autoManualMode = false;
-            exposure.onOff = false;
-            exposure.onePush = false;
             exposure.absControl = true;
             exposure.absValue = -2f;
-            cam.SetProperty(exposure);
+            try
+            {
+                cam.SetProperty(exposure);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + exposure.type + " to camera. Error:" + ex.Message);
+            }
 
-            CameraProperty brightness = new CameraProperty();
-            brightness.type = PropertyType.Brightness;
+            CameraProperty brightness = cam.GetProperty(PropertyType.Brightness);
             brightness.autoManualMode = false;
-            brightness.onOff = true;
-            brightness.onePush = false;
             brightness.absControl = true;
             brightness.absValue = 5.0f;
-            cam.SetProperty(brightness);
+            try
+            {
+                cam.SetProperty(brightness);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + brightness.type + " to camera. Error:" + ex.Message);
+            }
 
-            CameraProperty sharpness = new CameraProperty();
-            sharpness.type = PropertyType.Sharpness;
+            CameraProperty sharpness = cam.GetProperty(PropertyType.Sharpness);
             sharpness.autoManualMode = false;
-            sharpness.onOff = true;
-            sharpness.onePush = false;
-            sharpness.absControl = false;
             sharpness.valueA = 1024;
-            cam.SetProperty(sharpness);
+            try
+            {
+                cam.SetProperty(sharpness);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + sharpness.type + " to camera. Error:" + ex.Message);
+            }
 
-            CameraProperty gamma = new CameraProperty();
-            gamma.type = PropertyType.Gamma;
+            CameraProperty gamma = cam.GetProperty(PropertyType.Gamma);
             gamma.autoManualMode = false;
-            gamma.onOff = true;
-            gamma.onePush = false;
             gamma.absControl = true;
             gamma.absValue = 2.250f;
-            cam.SetProperty(gamma);
+            try
+            {
+                cam.SetProperty(gamma);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + gamma.type + " to camera. Error:" + ex.Message);
+            }
 
             //CameraProperty shutter = new CameraProperty();
             //shutter.type = PropertyType.Shutter;
@@ -141,23 +241,31 @@ namespace WallVizOpenCV
             ////prop.absValue = 9.926f;
             //cam.SetProperty(shutter);
 
-            CameraProperty gain = new CameraProperty();
-            gain.type = PropertyType.Gain;
+            CameraProperty gain = cam.GetProperty(PropertyType.Gain);
             gain.autoManualMode = false;
-            gain.onOff = true;
-            gain.onePush = false;
             gain.absControl = true;
             gain.absValue = 0f;
-            cam.SetProperty(gain);
+            try
+            {
+                cam.SetProperty(gain);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + gain.type + " to camera. Error:" + ex.Message);
+            }
 
-            CameraProperty fps = new CameraProperty();
-            fps.type = PropertyType.FrameRate;
+            CameraProperty fps = cam.GetProperty(PropertyType.FrameRate);
             fps.autoManualMode = false;
-            fps.onOff = true;
-            fps.onePush = false;
             fps.absControl = true;
             fps.absValue = 100.0f;
-            cam.SetProperty(fps);
+            try
+            {
+                cam.SetProperty(fps);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + fps.type + " to camera. Error:" + ex.Message);
+            }
 
             Console.WriteLine("FPS: {0}", cam.GetProperty(PropertyType.FrameRate).absValue);
             Console.WriteLine("Gain: {0}", cam.GetProperty(PropertyType.Gain).absValue);
@@ -167,14 +275,15 @@ namespace WallVizOpenCV
             Console.WriteLine("Brightness: {0}", cam.GetProperty(PropertyType.Brightness).absValue);
             Console.WriteLine("Exposure: {0}", cam.GetProperty(PropertyType.AutoExposure).absValue);
         }
-
         public PointGreyCamera(bool softwareTrigger = true)
         {
+            Ready = false;
             this.softwareTrigger = softwareTrigger;
             busMgr = new ManagedBusManager();
             cam = new ManagedCamera();
             ConnectToCamera();
             Configure();
+            Ready = true;
         }
 
         bool PollForTriggerReady()
@@ -204,6 +313,7 @@ namespace WallVizOpenCV
 
         public void StartCapture()
         {
+            while (!Ready) ;
             cam.StartCapture();
         }
 
@@ -215,9 +325,9 @@ namespace WallVizOpenCV
 
         public void RetrieveBuffer(ManagedImage img)
         {
-            // Fire software trigger
             if (softwareTrigger)
             {
+                
                 PollForTriggerReady();
                 bool retVal = FireSoftwareTrigger();
                 if (retVal != true)
@@ -225,9 +335,7 @@ namespace WallVizOpenCV
                     Console.WriteLine("Error firing software trigger!");
                     throw new Exception("Error firing software trigger!");
                 }
-
             }
-
             cam.RetrieveBuffer(img);
         }
 

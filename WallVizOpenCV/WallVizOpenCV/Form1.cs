@@ -42,7 +42,7 @@ namespace WallVizOpenCV
         private void backgroundCapture(PointGreyCamera cam)
         {
             float[] times = new float[]{0f,0f,0f,0f,0f};
-            
+
             while (true)
             {
                 stopwatch.Restart();
