@@ -6,16 +6,31 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace WallVizOpenCV
 {
     public class PointGreyCamera : IDisposable
     {
+        private Stopwatch watch = new Stopwatch();
         private ManagedCamera cam;
         private ManagedPGRGuid guid;
         private ManagedBusManager busMgr;
         private bool softwareTrigger = true;
         public bool Ready { get; private set; }
+
+        // TODO: Read in a settings file for all configurable options, and then
+        // use those options in Configure(). - March 10th, 2016. Martin.
+        public PointGreyCamera(bool softwareTrigger = true)
+        {
+            Ready = false;
+            this.softwareTrigger = softwareTrigger;
+            busMgr = new ManagedBusManager();
+            cam = new ManagedCamera();
+            ConnectToCamera();
+            Configure();
+            Ready = true;
+        }
 
         static void PrintCameraInfo(CameraInfo camInfo)
         {
@@ -39,26 +54,32 @@ namespace WallVizOpenCV
         {
             uint numCameras = busMgr.GetNumOfCameras();
             Console.WriteLine("Number of cameras: {0}", numCameras);
-            guid = busMgr.GetCameraFromIndex(0);
-
-            // Connect.
-            cam.Connect(guid);
-            //cam.StopCapture();
-            
-            // Power on the camera
-            const uint k_cameraPower = 0x610;
-            const uint k_powerVal = 0x80000000;
-            cam.WriteRegister(k_cameraPower, k_powerVal);
-
-            const Int32 k_millisecondsToSleep = 100;
-            uint regVal = 0;
-
-            // Wait for camera to complete power-up
-            do
+            try
             {
-                System.Threading.Thread.Sleep(k_millisecondsToSleep);
-                regVal = cam.ReadRegister(k_cameraPower);
-            } while ((regVal & k_powerVal) == 0);
+                guid = busMgr.GetCameraFromIndex(0);
+                cam.Connect(guid);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Connection exception:" + ex);
+            }
+            // Connect.
+            
+            
+            //// Power on the camera
+            //const uint k_cameraPower = 0x610;
+            //const uint k_powerVal = 0x80000000;
+            //cam.WriteRegister(k_cameraPower, k_powerVal);
+
+            //const Int32 k_millisecondsToSleep = 100;
+            //uint regVal = 0;
+
+            //// Wait for camera to complete power-up
+            //do
+            //{
+            //    System.Threading.Thread.Sleep(k_millisecondsToSleep);
+            //    regVal = cam.ReadRegister(k_cameraPower);
+            //} while ((regVal & k_powerVal) == 0);
 
             Console.WriteLine("Camera powered on.");
             // Attach dispose to software exit.
@@ -73,7 +94,6 @@ namespace WallVizOpenCV
         {
             // Get current trigger settings
             TriggerMode triggerMode = cam.GetTriggerMode();
-
             // Set camera to trigger mode 0
             // A source of 7 means software trigger
             triggerMode.onOff = true;
@@ -101,15 +121,14 @@ namespace WallVizOpenCV
             uint currPacketSize = 0;
             float percentage = 0f;
             cam.GetFormat7Configuration(currSettings, ref currPacketSize, ref percentage);
-
             
             Format7ImageSettings settings = new Format7ImageSettings();
-            settings.mode = Mode.Mode0;
-            settings.offsetX = 512;
-            settings.offsetY = 512;
-            settings.width = 1024;
-            settings.height = 1024;
-            settings.pixelFormat = PixelFormat.PixelFormatMono8;
+            settings.mode = Mode.Mode2;
+            settings.offsetX = Convert.ToUInt32(0);
+            settings.offsetY = Convert.ToUInt32(0);
+            settings.width = Convert.ToUInt32(1024);
+            settings.height = Convert.ToUInt32(1024);
+            settings.pixelFormat = PixelFormat.PixelFormatRaw8;
 
             bool needRestart = true;
             try
@@ -120,18 +139,18 @@ namespace WallVizOpenCV
             {
                 if (ex.Type == ErrorType.IsochNotStarted)
                 {
-                    // This means the camera was stopped and therefore we
-                    // do not need to restart it
+                    Console.WriteLine("Do not need restart.");
                     needRestart = false;
                 }
             }
 
-            bool supported = true;
-            Format7Info info = cam.GetFormat7Info(Mode.Mode0, ref supported);
 
+            bool supported = true;
+            Format7Info info = cam.GetFormat7Info(Mode.Mode2, ref supported);
             try
             {
-                cam.SetFormat7Configuration(settings, info.maxPacketSize);
+
+                cam.SetFormat7Configuration(settings, info.packetSize);
             }
             catch (FC2Exception settingFormat7Exception)
             {
@@ -161,21 +180,17 @@ namespace WallVizOpenCV
 
         private void SetGrabTimeout()
         {
-            // Get the camera configuration
             FC2Config config = cam.GetConfiguration();
-            // Set the grab timeout to 5 seconds
             config.grabTimeout = 5000;
-            // Set the camera configuration
             cam.SetConfiguration(config);
         }
 
         private void Configure()
         {
             SetTriggerMode();
-            SetFormat7Settings();
             SetGrabTimeout();
+            SetFormat7Settings();
             SetProperties();
-            PollForTriggerReady();
         }
 
         private void SetProperties()
@@ -183,7 +198,7 @@ namespace WallVizOpenCV
             CameraProperty exposure = cam.GetProperty(PropertyType.AutoExposure);
             exposure.autoManualMode = false;
             exposure.absControl = true;
-            exposure.absValue = -2f;
+            exposure.absValue = -0.415f;
             try
             {
                 cam.SetProperty(exposure);
@@ -196,7 +211,7 @@ namespace WallVizOpenCV
             CameraProperty brightness = cam.GetProperty(PropertyType.Brightness);
             brightness.autoManualMode = false;
             brightness.absControl = true;
-            brightness.absValue = 5.0f;
+            brightness.absValue = 2.5f;
             try
             {
                 cam.SetProperty(brightness);
@@ -221,7 +236,7 @@ namespace WallVizOpenCV
             CameraProperty gamma = cam.GetProperty(PropertyType.Gamma);
             gamma.autoManualMode = false;
             gamma.absControl = true;
-            gamma.absValue = 2.250f;
+            gamma.absValue = 1.620f;
             try
             {
                 cam.SetProperty(gamma);
@@ -231,20 +246,10 @@ namespace WallVizOpenCV
                 Console.WriteLine("Failed to write " + gamma.type + " to camera. Error:" + ex.Message);
             }
 
-            //CameraProperty shutter = new CameraProperty();
-            //shutter.type = PropertyType.Shutter;
-            //shutter.autoManualMode = false;
-            //shutter.autoManualMode = true;
-            //shutter.onOff = true;
-            //shutter.onePush = false;
-            //shutter.absControl = true;
-            ////prop.absValue = 9.926f;
-            //cam.SetProperty(shutter);
-
             CameraProperty gain = cam.GetProperty(PropertyType.Gain);
             gain.autoManualMode = false;
             gain.absControl = true;
-            gain.absValue = 0f;
+            gain.absValue = 2.5f;
             try
             {
                 cam.SetProperty(gain);
@@ -254,7 +259,24 @@ namespace WallVizOpenCV
                 Console.WriteLine("Failed to write " + gain.type + " to camera. Error:" + ex.Message);
             }
 
+            CameraProperty shutter = cam.GetProperty(PropertyType.Shutter);
+            shutter.autoManualMode = false;
+            shutter.absControl = true;
+            //shutter.absValue = 0.032f;
+            shutter.absValue = 2f;
+            try
+            {
+                cam.SetProperty(shutter);
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("Failed to write " + shutter.type + " to camera. Error:" + ex.Message);
+            }
+
             CameraProperty fps = cam.GetProperty(PropertyType.FrameRate);
+            CameraPropertyInfo pinfo = cam.GetPropertyInfo(PropertyType.FrameRate);
+            Console.WriteLine("FPS max: {0}", pinfo.absMax);
+            Console.WriteLine("Shutter min: {0}", cam.GetPropertyInfo(PropertyType.Shutter).absMin);
             fps.autoManualMode = false;
             fps.absControl = true;
             fps.absValue = 100.0f;
@@ -275,59 +297,49 @@ namespace WallVizOpenCV
             Console.WriteLine("Brightness: {0}", cam.GetProperty(PropertyType.Brightness).absValue);
             Console.WriteLine("Exposure: {0}", cam.GetProperty(PropertyType.AutoExposure).absValue);
         }
-        public PointGreyCamera(bool softwareTrigger = true)
-        {
-            Ready = false;
-            this.softwareTrigger = softwareTrigger;
-            busMgr = new ManagedBusManager();
-            cam = new ManagedCamera();
-            ConnectToCamera();
-            Configure();
-            Ready = true;
-        }
 
         bool PollForTriggerReady()
         {
-            const uint k_softwareTrigger = 0x62C;
+            //const uint k_softwareTrigger = 0x62C;
 
-            uint regVal = 0;
+            //uint regVal = 0;
 
-            do
-            {
-                regVal = cam.ReadRegister(k_softwareTrigger);
-            }
-            while ((regVal >> 31) != 0);
+            //do
+            //{
+            //    regVal = cam.ReadRegister(k_softwareTrigger);
+            //}
+            //while ((regVal >> 31) != 0);
 
             return true;
         }
 
         bool FireSoftwareTrigger()
         {
-            const uint k_softwareTrigger = 0x62C;
-            const uint k_fireVal = 0x80000000;
+            cam.FireSoftwareTrigger(false);
 
-            cam.WriteRegister(k_softwareTrigger, k_fireVal);
+            //const uint k_softwareTrigger = 0x62C;
+            //const uint k_fireVal = 0x80000000;
+
+            //cam.WriteRegister(k_softwareTrigger, k_fireVal);
 
             return true;
         }
 
         public void StartCapture()
         {
-            while (!Ready) ;
+            //while (!Ready) ;
             cam.StartCapture();
         }
 
         public void StopCapture()
         {
             cam.StopCapture();
-            cam.Disconnect();
         }
 
         public void RetrieveBuffer(ManagedImage img)
         {
             if (softwareTrigger)
             {
-                
                 PollForTriggerReady();
                 bool retVal = FireSoftwareTrigger();
                 if (retVal != true)
@@ -343,6 +355,7 @@ namespace WallVizOpenCV
         {
             cam.StopCapture();
             cam.Disconnect();
+            busMgr.Dispose();
         }
 
 
@@ -350,6 +363,7 @@ namespace WallVizOpenCV
         {
             cam.StopCapture();
             cam.Disconnect();
+            busMgr.Dispose();
         }
     }
 }
