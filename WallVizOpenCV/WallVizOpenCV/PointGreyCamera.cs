@@ -52,10 +52,12 @@ namespace WallVizOpenCV
 
             if (softwareTrigger)
             {
+                Console.WriteLine("Trigger mode: Software.");
                 triggerMode.source = 7;
             }
             else
             {
+                Console.WriteLine("Trigger mode: Hardware.");
                 triggerMode.source = 0;
             }
 
@@ -65,15 +67,15 @@ namespace WallVizOpenCV
 
         private void Configure()
         {
-            //SetTriggerMode();
-            //// Get the camera configuration
-            //FC2Config config = cam.GetConfiguration();
+            SetTriggerMode();
+            // Get the camera configuration
+            FC2Config config = cam.GetConfiguration();
 
-            //// Set the grab timeout to 5 seconds
-            //// TODO: What is grab timeout??? -- Martin
-            //config.grabTimeout = 5000;
-            //// Set the camera configuration
-            //cam.SetConfiguration(config);
+            // Set the grab timeout to 5 seconds
+            // TODO: What is grab timeout??? -- Martin
+            config.grabTimeout = 5000;
+            // Set the camera configuration
+            cam.SetConfiguration(config);
 
             Format7ImageSettings settings = new Format7ImageSettings();
             settings.mode = Mode.Mode0;
@@ -83,70 +85,87 @@ namespace WallVizOpenCV
             settings.height = 1024;
             settings.pixelFormat = PixelFormat.PixelFormatMono8;
 
-            bool bah = true;
-            Format7Info info = cam.GetFormat7Info(Mode.Mode0, ref bah);
+            bool supported = true;
+            Format7Info info = cam.GetFormat7Info(Mode.Mode0, ref supported);
             cam.SetFormat7Configuration(settings, info.maxPacketSize);
 
-            //CameraProperty prop = new CameraProperty();
-            //prop.type = PropertyType.AutoExposure;
-            //prop.autoManualMode = true;
-            //prop.onOff = false;
-            //prop.onePush = false;
-            //prop.absControl = true;
-            //cam.SetProperty(prop);
+            Format7ImageSettings f7Settings = new Format7ImageSettings();
+            float pSpeed = info.percentage;
+            uint pSize = info.maxPacketSize;
+            cam.GetFormat7Configuration(f7Settings, ref pSize, ref pSpeed);
+            Console.WriteLine("Height: {0} Width: {1} OffsetX: {2} OffsetY: {3} Mode: {4}", f7Settings.height, f7Settings.width, f7Settings.offsetX, f7Settings.offsetY, f7Settings.mode);
 
-            //prop.type = PropertyType.Brightness;
-            //prop.autoManualMode = false;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = true;
-            //prop.absValue = 5.078f;
-            //cam.SetProperty(prop);
+            CameraProperty exposure = new CameraProperty();
+            exposure.type = PropertyType.AutoExposure;
+            exposure.autoManualMode = false;
+            exposure.onOff = false;
+            exposure.onePush = false;
+            exposure.absControl = true;
+            exposure.absValue = -2f;
+            cam.SetProperty(exposure);
 
-            //prop.type = PropertyType.Sharpness;
-            //prop.autoManualMode = false;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = false;
-            //prop.valueA = 1024;
-            ////prop.absValue = 1024;
-            //cam.SetProperty(prop);
+            CameraProperty brightness = new CameraProperty();
+            brightness.type = PropertyType.Brightness;
+            brightness.autoManualMode = false;
+            brightness.onOff = true;
+            brightness.onePush = false;
+            brightness.absControl = true;
+            brightness.absValue = 5.0f;
+            cam.SetProperty(brightness);
 
-            //prop.type = PropertyType.Gamma;
-            //prop.autoManualMode = false;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = true;
-            //prop.absValue = 1.250f;
-            //cam.SetProperty(prop);
+            CameraProperty sharpness = new CameraProperty();
+            sharpness.type = PropertyType.Sharpness;
+            sharpness.autoManualMode = false;
+            sharpness.onOff = true;
+            sharpness.onePush = false;
+            sharpness.absControl = false;
+            sharpness.valueA = 1024;
+            cam.SetProperty(sharpness);
 
-            //prop.type = PropertyType.Shutter;
-            //prop.autoManualMode = false;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = true;
-            //prop.absValue = 9.926f;
-            //cam.SetProperty(prop);
+            CameraProperty gamma = new CameraProperty();
+            gamma.type = PropertyType.Gamma;
+            gamma.autoManualMode = false;
+            gamma.onOff = true;
+            gamma.onePush = false;
+            gamma.absControl = true;
+            gamma.absValue = 2.250f;
+            cam.SetProperty(gamma);
 
-            //prop.type = PropertyType.Gain;
-            //prop.autoManualMode = true;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = false;
+            //CameraProperty shutter = new CameraProperty();
+            //shutter.type = PropertyType.Shutter;
+            //shutter.autoManualMode = false;
+            //shutter.autoManualMode = true;
+            //shutter.onOff = true;
+            //shutter.onePush = false;
+            //shutter.absControl = true;
             ////prop.absValue = 9.926f;
-            //cam.SetProperty(prop);
+            //cam.SetProperty(shutter);
 
-            //prop.type = PropertyType.FrameRate;
-            //prop.autoManualMode = false;
-            //prop.onOff = true;
-            //prop.onePush = false;
-            //prop.absControl = true;
-            //prop.absValue = 100.0f;
-            //cam.SetProperty(prop);
-            //// TODO: Set fps, exposure, etc etc.
+            CameraProperty gain = new CameraProperty();
+            gain.type = PropertyType.Gain;
+            gain.autoManualMode = false;
+            gain.onOff = true;
+            gain.onePush = false;
+            gain.absControl = true;
+            gain.absValue = 0f;
+            cam.SetProperty(gain);
 
-            CameraProperty fps = cam.GetProperty(PropertyType.FrameRate);
-            Console.WriteLine("FPS: {0}", fps.absValue);
+            CameraProperty fps = new CameraProperty();
+            fps.type = PropertyType.FrameRate;
+            fps.autoManualMode = false;
+            fps.onOff = true;
+            fps.onePush = false;
+            fps.absControl = true;
+            fps.absValue = 100.0f;
+            cam.SetProperty(fps);
+
+            Console.WriteLine("FPS: {0}", cam.GetProperty(PropertyType.FrameRate).absValue);
+            Console.WriteLine("Gain: {0}", cam.GetProperty(PropertyType.Gain).absValue);
+            Console.WriteLine("Shutter: {0}", cam.GetProperty(PropertyType.Shutter).absValue);
+            Console.WriteLine("Gamma: {0}", cam.GetProperty(PropertyType.Gamma).absValue);
+            Console.WriteLine("Sharpness: {0}", cam.GetProperty(PropertyType.Sharpness).valueA);
+            Console.WriteLine("Brightness: {0}", cam.GetProperty(PropertyType.Brightness).absValue);
+            Console.WriteLine("Exposure: {0}", cam.GetProperty(PropertyType.AutoExposure).absValue);
         }
 
         public PointGreyCamera(bool softwareTrigger = true)

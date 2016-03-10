@@ -36,7 +36,7 @@ namespace WallVizOpenCV
         // Generate TUIO events for updates/new cursors.
         private void parseBlobs(CvBlobs blobs)
         {
-            Console.WriteLine("Detected {0} blobs.", blobs.Count);
+            //Console.WriteLine("Detected {0} blobs.", blobs.Count);
         }
 
         private void backgroundCapture(PointGreyCamera cam)
@@ -63,7 +63,7 @@ namespace WallVizOpenCV
                     imageBox2.Image = final;
                     imageBox3.Image = bDetect.DrawBlobs(final, blobs, CvBlobDetector.BlobRenderType.BoundingBox, 0.75f);
                 }
-                Console.WriteLine("Retrieve: {0} PGR2MAT: {1} Filters: {2} Blob Detection: {3} Total: {4}",times[0], times[1], times[2], times[3], stopwatch.ElapsedMilliseconds);
+                //Console.WriteLine("Retrieve: {0} PGR2MAT: {1} Filters: {2} Blob Detection: {3} Total: {4}",times[0], times[1], times[2], times[3], stopwatch.ElapsedMilliseconds);
                 while (stopwatch.ElapsedMilliseconds < 10) ;
             }
         }
