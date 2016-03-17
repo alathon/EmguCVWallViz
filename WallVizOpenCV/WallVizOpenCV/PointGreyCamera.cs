@@ -16,19 +16,28 @@ namespace WallVizOpenCV
         private ManagedCamera cam;
         private ManagedPGRGuid guid;
         private ManagedBusManager busMgr;
+        private uint serialNumber;
         private bool softwareTrigger = true;
         public bool Ready { get; private set; }
 
         // TODO: Read in a settings file for all configurable options, and then
         // use those options in Configure(). - March 10th, 2016. Martin.
-        public PointGreyCamera(bool softwareTrigger = true)
+        public PointGreyCamera(uint serial, bool softwareTrigger = true)
         {
             Ready = false;
             this.softwareTrigger = softwareTrigger;
+            this.serialNumber = serial;
             busMgr = new ManagedBusManager();
             cam = new ManagedCamera();
             ConnectToCamera();
-            Configure();
+            try
+            {
+                Configure();
+            }
+            catch (FC2Exception ex)
+            {
+                Console.WriteLine("FC2 Exception: " + ex);
+            }
             Ready = true;
         }
 
@@ -52,36 +61,34 @@ namespace WallVizOpenCV
 
         private void ConnectToCamera()
         {
-            uint numCameras = busMgr.GetNumOfCameras();
-            Console.WriteLine("Number of cameras: {0}", numCameras);
+            // Connect
             try
             {
-                guid = busMgr.GetCameraFromIndex(0);
+                guid = busMgr.GetCameraFromSerialNumber(this.serialNumber);
                 cam.Connect(guid);
             }
             catch (FC2Exception ex)
             {
                 Console.WriteLine("Connection exception:" + ex);
             }
-            // Connect.
-            
-            
-            //// Power on the camera
-            //const uint k_cameraPower = 0x610;
-            //const uint k_powerVal = 0x80000000;
-            //cam.WriteRegister(k_cameraPower, k_powerVal);
 
-            //const Int32 k_millisecondsToSleep = 100;
-            //uint regVal = 0;
+            // Power on the camera
+            const uint k_cameraPower = 0x610;
+            const uint k_powerVal = 0x80000000;
+            cam.WriteRegister(k_cameraPower, k_powerVal);
 
-            //// Wait for camera to complete power-up
-            //do
-            //{
-            //    System.Threading.Thread.Sleep(k_millisecondsToSleep);
-            //    regVal = cam.ReadRegister(k_cameraPower);
-            //} while ((regVal & k_powerVal) == 0);
+            const Int32 k_millisecondsToSleep = 100;
+            uint regVal = 0;
+
+            // Wait for camera to complete power-up
+            do
+            {
+                System.Threading.Thread.Sleep(k_millisecondsToSleep);
+                regVal = cam.ReadRegister(k_cameraPower);
+            } while ((regVal & k_powerVal) == 0);
 
             Console.WriteLine("Camera powered on.");
+
             // Attach dispose to software exit.
             AppDomain.CurrentDomain.ProcessExit += new EventHandler(OnProcessExit);
 
@@ -327,7 +334,7 @@ namespace WallVizOpenCV
 
         public void StartCapture()
         {
-            //while (!Ready) ;
+            while (!Ready) ;
             cam.StartCapture();
         }
 

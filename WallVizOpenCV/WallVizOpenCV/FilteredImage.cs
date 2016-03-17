@@ -10,12 +10,12 @@ namespace WallVizOpenCV
 {
     public class FilteredImage
     {
-        public FilteredImage(bool balance, int kernelSize, int binaryThreshold, int binaryMaxValue)
+        public FilteredImage(bool balance, int kernelSize, int binaryThreshold)
         {
             this.balance = balance;
             this.kernelSize = kernelSize;
-            this.minThresh = new Gray(binaryMaxValue);
-            this.maxThresh = new Gray(binaryThreshold);
+            this.minThresh = new Gray(binaryThreshold);
+            this.maxThresh = new Gray(255);
         }
 
         private bool balance;
@@ -23,7 +23,7 @@ namespace WallVizOpenCV
         private Gray minThresh;
         private Gray maxThresh;
 
-        public void SetLowThreshold(int v)
+        public void SetThreshold(int v)
         {
             this.minThresh = new Gray(v);
         }
@@ -38,63 +38,55 @@ namespace WallVizOpenCV
             get;
             private set;
         }
-        public Image<Gray, Byte> GrayscaleImg
+        public Image<Gray, Byte> ResultImage
         {
             get;
             private set;
         }
-        public Image<Gray, Byte> GaussImg
+        public Image<Gray, Byte> CurrentImage
         {
             get;
             private set;
         }
-        public Image<Gray, Byte> ThresholdImg
+        public Image<Gray, Byte> DiffImage
         {
             get;
             private set;
         }
-        public Image<Gray, Byte> DiffImg
+
+        private void AdaptiveResultImage(Image<Gray, Byte> img)
         {
-            get;
-            private set;
+            ResultImage = img.ThresholdAdaptive(maxThresh, Emgu.CV.CvEnum.AdaptiveThresholdType.GaussianC, Emgu.CV.CvEnum.ThresholdType.Binary, 21, new Gray(-5));
+        }
+
+        private void BinaryThreshResultImage(Image<Gray, Byte> img)
+        {
+            ResultImage = img.Clone();
+            ResultImage._ThresholdBinary(minThresh, maxThresh);
+        }
+
+        public void SetBalance(Image<Gray, Byte> image)
+        {
+            BalanceImg = image.Clone();
+            BalanceImg._SmoothGaussian(kernelSize);
         }
 
         public void SetFrame(Image<Gray, Byte> image)
         {
-            GrayscaleImg = image;
-            Console.WriteLine("1");
-            GrayscaleImg._SmoothGaussian(kernelSize);
-            Console.WriteLine("2");
-            GrayscaleImg._ThresholdBinary(minThresh, maxThresh);
-            Console.WriteLine("3");
+            CurrentImage = image;
+            CurrentImage._SmoothGaussian(kernelSize);
 
-            //GaussImg = GrayscaleImg; // GrayscaleImg.SmoothGaussian(kernelSize);
-            //if (BalanceImg != null && balance)
-           // {
-            //    DiffImg = BalanceImg.AbsDiff(GaussImg);
-                //ThresholdImg = DiffImg.ThresholdAdaptive()
-             //   ThresholdImg = DiffImg.ThresholdBinary(new Gray(binaryThreshold), new Gray(binaryMaxValue));
-           // }
-           // else
-           // {
-           //     ThresholdImg = GaussImg.ThresholdBinary(new Gray(binaryThreshold), new Gray(binaryMaxValue));
-           // }
+            if (balance && BalanceImg != null)
+            {
+                DiffImage = CurrentImage.AbsDiff(BalanceImg);
+                // TODO: Consider equalizing the DiffImage, to stretch out the histogram and get more control over where to cut off.
+                //DiffImage = DiffImage.InRange(new Gray(25), new Gray(60));
+            }
+            else
+            {
+                DiffImage = CurrentImage;
+            }
+            BinaryThreshResultImage(DiffImage);
         }
-        public void SetFrame(Mat frame)
-        {
-            SetFrame(frame.ToImage<Gray, Byte>());
-        }
-
-        public void SetBalanceImg(Image<Gray, Byte> image)
-        {
-            BalanceImg = image.SmoothGaussian(kernelSize);
-        }
-
-        public void SetBalanceImg(Mat frame)
-        {
-            BalanceImg = frame.ToImage<Gray, Byte>().SmoothGaussian(kernelSize);
-        }
-
-
     }
 }

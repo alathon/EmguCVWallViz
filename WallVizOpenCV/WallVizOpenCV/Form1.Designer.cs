@@ -37,9 +37,11 @@
             this.msFilters = new System.Windows.Forms.Label();
             this.msBlobDetection = new System.Windows.Forms.Label();
             this.imageBox2 = new Emgu.CV.UI.ImageBox();
+            this.imageBox4 = new Emgu.CV.UI.ImageBox();
             this.imageBox3 = new Emgu.CV.UI.ImageBox();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox2)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.imageBox4)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox3)).BeginInit();
             this.SuspendLayout();
             // 
@@ -55,7 +57,7 @@
             // cameraFps
             // 
             this.cameraFps.AutoSize = true;
-            this.cameraFps.Location = new System.Drawing.Point(12, 374);
+            this.cameraFps.Location = new System.Drawing.Point(757, 405);
             this.cameraFps.Name = "cameraFps";
             this.cameraFps.Size = new System.Drawing.Size(72, 13);
             this.cameraFps.TabIndex = 7;
@@ -64,7 +66,7 @@
             // msTotal
             // 
             this.msTotal.AutoSize = true;
-            this.msTotal.Location = new System.Drawing.Point(9, 409);
+            this.msTotal.Location = new System.Drawing.Point(754, 440);
             this.msTotal.Name = "msTotal";
             this.msTotal.Size = new System.Drawing.Size(50, 13);
             this.msTotal.TabIndex = 8;
@@ -73,7 +75,7 @@
             // msRetrieveBuffer
             // 
             this.msRetrieveBuffer.AutoSize = true;
-            this.msRetrieveBuffer.Location = new System.Drawing.Point(352, 385);
+            this.msRetrieveBuffer.Location = new System.Drawing.Point(757, 467);
             this.msRetrieveBuffer.Name = "msRetrieveBuffer";
             this.msRetrieveBuffer.Size = new System.Drawing.Size(81, 13);
             this.msRetrieveBuffer.TabIndex = 9;
@@ -82,7 +84,7 @@
             // msConvertImg
             // 
             this.msConvertImg.AutoSize = true;
-            this.msConvertImg.Location = new System.Drawing.Point(352, 409);
+            this.msConvertImg.Location = new System.Drawing.Point(757, 491);
             this.msConvertImg.Name = "msConvertImg";
             this.msConvertImg.Size = new System.Drawing.Size(63, 13);
             this.msConvertImg.TabIndex = 10;
@@ -91,7 +93,7 @@
             // msFilters
             // 
             this.msFilters.AutoSize = true;
-            this.msFilters.Location = new System.Drawing.Point(538, 385);
+            this.msFilters.Location = new System.Drawing.Point(757, 520);
             this.msFilters.Name = "msFilters";
             this.msFilters.Size = new System.Drawing.Size(37, 13);
             this.msFilters.TabIndex = 11;
@@ -100,7 +102,7 @@
             // msBlobDetection
             // 
             this.msBlobDetection.AutoSize = true;
-            this.msBlobDetection.Location = new System.Drawing.Point(538, 409);
+            this.msBlobDetection.Location = new System.Drawing.Point(757, 544);
             this.msBlobDetection.Name = "msBlobDetection";
             this.msBlobDetection.Size = new System.Drawing.Size(80, 13);
             this.msBlobDetection.TabIndex = 12;
@@ -115,21 +117,31 @@
             this.imageBox2.TabIndex = 13;
             this.imageBox2.TabStop = false;
             // 
+            // imageBox4
+            // 
+            this.imageBox4.Location = new System.Drawing.Point(355, 384);
+            this.imageBox4.Name = "imageBox4";
+            this.imageBox4.Size = new System.Drawing.Size(321, 330);
+            this.imageBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.imageBox4.TabIndex = 15;
+            this.imageBox4.TabStop = false;
+            // 
             // imageBox3
             // 
-            this.imageBox3.Location = new System.Drawing.Point(709, 12);
+            this.imageBox3.Location = new System.Drawing.Point(12, 384);
             this.imageBox3.Name = "imageBox3";
             this.imageBox3.Size = new System.Drawing.Size(321, 330);
             this.imageBox3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.imageBox3.TabIndex = 14;
+            this.imageBox3.TabIndex = 16;
             this.imageBox3.TabStop = false;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1069, 650);
+            this.ClientSize = new System.Drawing.Size(1069, 769);
             this.Controls.Add(this.imageBox3);
+            this.Controls.Add(this.imageBox4);
             this.Controls.Add(this.imageBox2);
             this.Controls.Add(this.msBlobDetection);
             this.Controls.Add(this.msFilters);
@@ -142,6 +154,7 @@
             this.Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)(this.imageBox1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox2)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.imageBox4)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBox3)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -158,6 +171,7 @@
         private System.Windows.Forms.Label msFilters;
         private System.Windows.Forms.Label msBlobDetection;
         private Emgu.CV.UI.ImageBox imageBox2;
+        private Emgu.CV.UI.ImageBox imageBox4;
         private Emgu.CV.UI.ImageBox imageBox3;
     }
 }

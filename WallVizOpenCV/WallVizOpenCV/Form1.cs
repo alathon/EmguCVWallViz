@@ -26,23 +26,20 @@ namespace WallVizOpenCV
         private CvBlobDetector bDetect = new Emgu.CV.Cvb.CvBlobDetector();
         private Gray minGray = new Gray(80);
         private Gray maxGray = new Gray(255);
+        private FilteredImage filteredImage = new FilteredImage(true, 5, 120);
         private ManagedImage mImage = new ManagedImage();
+        private ManagedImage dest = new ManagedImage();
         private Stopwatch stopwatch = new Stopwatch();
         private CvBlobs blobs = new CvBlobs();
         private DispatcherTimer uiTimer;
         float[] times = new float[] { 0f, 0f, 0f, 0f, 0f };
         private Thread processingThread;
 
-        private void filterImage(Emgu.CV.Image<Gray, Byte> img, int kernelSize, Gray minGray, Gray maxGray) {
-            img._SmoothGaussian(kernelSize);
-            img._ThresholdBinary(minGray, maxGray);
-        }
-
         // Compare blobs to previous set of blobs.
         // Generate TUIO events for updates/new cursors.
         private void parseBlobs(CvBlobs blobs)
         {
-            Console.WriteLine("Detected {0} blobs.", blobs.Count);
+            //Console.WriteLine("Detected {0} blobs.", blobs.Count);
         }
 
         private void backgroundCapture(PointGreyCamera cam)
@@ -52,27 +49,36 @@ namespace WallVizOpenCV
                 stopwatch.Restart();
                 cam.RetrieveBuffer(mImage);
                 times[0] = stopwatch.ElapsedMilliseconds;
-
                 unsafe
                 {
                     IntPtr p = (IntPtr)mImage.data;
                     Image<Gray, Byte> orig = new Image<Gray, Byte>(1024, 1024, (int)mImage.stride, p);
-                    Image<Gray, Byte> final = orig.Clone();
+                    Image<Gray, Byte> copy = orig.Clone();
+                    
                     times[1] = stopwatch.ElapsedMilliseconds - times[0];
-                    filterImage(final, 7, minGray, maxGray);
+                    if (this.filteredImage.BalanceImg == null)
+                    {
+                        this.filteredImage.SetBalance(copy);
+                    }
+                    this.filteredImage.SetFrame(copy);
                     times[2] = stopwatch.ElapsedMilliseconds - times[1] - times[0];
-                    bDetect.Detect(final, blobs);
+                    bDetect.Detect(this.filteredImage.ResultImage, blobs);
                     blobs.FilterByArea(blobAreaMin, blobAreaMax);
                     parseBlobs(blobs);
                     times[3] = stopwatch.ElapsedMilliseconds - times[2] - times[1] - times[0];
                     times[4] = stopwatch.ElapsedMilliseconds;
-                    imageBox1.Image = orig;
-                    imageBox2.Image = final;
-                    imageBox3.Image = bDetect.DrawBlobs(final, blobs, CvBlobDetector.BlobRenderType.BoundingBox, 1f);
+                    
+                    imageBox1.Image = this.filteredImage.BalanceImg;
+                    imageBox2.Image = this.filteredImage.CurrentImage;
+                    imageBox3.Image = this.filteredImage.DiffImage;
+                    imageBox4.Image = this.filteredImage.ResultImage; 
+                    // bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.BoundingBox, 1f);
+                    
+                    
                 }
                 while (stopwatch.ElapsedMilliseconds < 10) ;
                 fps = 1000 / (int)times[4];
-                Console.WriteLine("Buffer: {0} Convert: {1} Filters: {2} Detect: {3} Total: {4} (fps: {5})", times[0], times[1], times[2], times[3], times[4], fps);
+                //Console.WriteLine("Buffer: {0} Convert: {1} Filters: {2} Detect: {3} Total: {4} (fps: {5})", times[0], times[1], times[2], times[3], times[4], fps);
             }
         }
 
@@ -88,7 +94,11 @@ namespace WallVizOpenCV
         public Form1()
         {
             InitializeComponent();
-            PointGreyCamera cam = new PointGreyCamera(true);
+            imageBox1.FunctionalMode = Emgu.CV.UI.ImageBox.FunctionalModeOption.Minimum;
+            imageBox2.FunctionalMode = Emgu.CV.UI.ImageBox.FunctionalModeOption.Minimum;
+            imageBox3.FunctionalMode = Emgu.CV.UI.ImageBox.FunctionalModeOption.Minimum;
+            imageBox4.FunctionalMode = Emgu.CV.UI.ImageBox.FunctionalModeOption.Minimum;
+            PointGreyCamera cam = new PointGreyCamera(15307454, true);
             cam.StartCapture();
             Task.Factory.StartNew(() => backgroundCapture(cam));
             uiTimer = new DispatcherTimer(DispatcherPriority.SystemIdle);
