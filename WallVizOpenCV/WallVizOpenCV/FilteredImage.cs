@@ -43,6 +43,11 @@ namespace WallVizOpenCV
             get;
             private set;
         }
+        public Image<Gray, Byte> LastImage
+        {
+            get;
+            private set;
+        }
         public Image<Gray, Byte> CurrentImage
         {
             get;
@@ -54,20 +59,19 @@ namespace WallVizOpenCV
             private set;
         }
 
-        private void AdaptiveResultImage(Image<Gray, Byte> img)
-        {
-            ResultImage = img.ThresholdAdaptive(maxThresh, Emgu.CV.CvEnum.AdaptiveThresholdType.GaussianC, Emgu.CV.CvEnum.ThresholdType.Binary, 21, new Gray(-5));
-        }
-
         private void BinaryThreshResultImage(Image<Gray, Byte> img)
         {
+            if (ResultImage != null)
+            {
+                LastImage = ResultImage;
+            }
             ResultImage = img.Clone();
             ResultImage._ThresholdBinary(minThresh, maxThresh);
         }
 
         public void SetBalance(Image<Gray, Byte> image)
         {
-            BalanceImg = image.Clone();
+            BalanceImg = image;
             BalanceImg._SmoothGaussian(kernelSize);
         }
 
@@ -80,7 +84,7 @@ namespace WallVizOpenCV
             {
                 DiffImage = CurrentImage.AbsDiff(BalanceImg);
                 // TODO: Consider equalizing the DiffImage, to stretch out the histogram and get more control over where to cut off.
-                //DiffImage = DiffImage.InRange(new Gray(25), new Gray(60));
+                DiffImage = DiffImage.InRange(new Gray(25), new Gray(60));
             }
             else
             {
