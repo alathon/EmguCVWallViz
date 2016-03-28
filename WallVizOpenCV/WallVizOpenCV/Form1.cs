@@ -45,8 +45,7 @@ namespace WallVizOpenCV
             RunCamera();
         }
 
-        // Compare blobs to previous set of blobs.
-        // Generate TUIO events for updates/new cursors.
+        // Debug info.
         private void parseBlobs(CvBlobs blobs)
         {
             //Console.WriteLine("Detected {0} blobs.", blobs.Count);
@@ -63,6 +62,7 @@ namespace WallVizOpenCV
             imageBox4.Image = this.filteredImage.ResultImage; 
         }
 
+        // Process a frame -> Detect blobs, track blobs, send off TUIO events.
         private void OnNewFrame(Image<Gray, Byte> image)
         {
             if(!processing) return;
@@ -74,15 +74,16 @@ namespace WallVizOpenCV
             this.filteredImage.SetFrame(image);
             bDetect.Detect(this.filteredImage.ResultImage, blobs);
             blobs.FilterByArea(blobAreaMin, blobAreaMax);
-            parseBlobs(blobs);
-            UpdateImageBoxes();
-            //Task.Factory.StartNew(() => UpdateImageBoxes());
+            // TODO: Blob tracking.
+            UpdateImageBoxes(); // TODO: This should probably occur on a UI thread, to not take up extra MS?
             processing = false;
 
             // Simulate delay.
             Thread.Sleep(7);
         }
 
+        // Background capture where OnNewFrame() is handed off to a new Task.
+        // Frames retrieved while the old frame is still processing are dropped.
         private void otherBackgroundCapture(PointGreyCamera cam)
         {
             cam.StartCapture();
@@ -109,12 +110,13 @@ namespace WallVizOpenCV
                     }
                 }
             }
-            timer.Stop();
+            //timer.Stop();
             //Console.WriteLine("Time taken by non-sequential capture: {0}ms ({1}ms per). Dropped frames: {2}/{3}", 
             //    timer.ElapsedMilliseconds, timer.ElapsedMilliseconds / (float)count, drops, count);
-            cam.StopCapture();
+            //cam.StopCapture();
         }
 
+        // This is just here for comparison: OnNewFrame() happens in same thread, everything is sequential.
         private void seqBackgroundCapture(PointGreyCamera cam, int count)
         {
             cam.StartCapture();
@@ -162,7 +164,7 @@ namespace WallVizOpenCV
         private void RunCamera()
         {
             PointGreyCamera cam = new PointGreyCamera(15307454, true);
-            Task.Factory.StartNew(() => otherBackgroundCapture(cam));
+            Task.Factory.StartNew(() => otherBackgroundCapture(cam), TaskCreationOptions.LongRunning);
                 //.ContinueWith((antecedent) => seqBackgroundCapture(cam, 1000));
         }
 

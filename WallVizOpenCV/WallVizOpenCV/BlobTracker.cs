@@ -44,13 +44,13 @@ namespace WallVizOpenCV
             {
                 LastFrame = CurrentFrame = frame;
             }
-            track();
+            //track();
         }
 
         private void track()
         {
             if (CurrentFrame == null || LastFrame == null) return;
-
+               
             double maxRadius = 0.5;
             var lastBlobs = LastFrame.Values;
             var currBlobs = CurrentFrame.Values;
