@@ -71,11 +71,15 @@ namespace WallVizOpenCV
             {
                 this.filteredImage.SetBalance(image.Clone());
             }
+            processStopwatch.Restart();
             this.filteredImage.SetFrame(image);
+            times[1] = processStopwatch.ElapsedMilliseconds;
             bDetect.Detect(this.filteredImage.ResultImage, blobs);
-            blobs.FilterByArea(blobAreaMin, blobAreaMax);
-            // TODO: Blob tracking.
-            UpdateImageBoxes(); // TODO: This should probably occur on a UI thread, to not take up extra MS?
+            bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.Default, 0.75f);
+            //blobs.FilterByArea(blobAreaMin, blobAreaMax);
+            times[2] = processStopwatch.ElapsedMilliseconds;
+            //var blobEvents = tracker.NewFrame(blobs);
+            UpdateImageBoxes();
             processing = false;
 
             // Simulate delay.
@@ -93,11 +97,13 @@ namespace WallVizOpenCV
             int drops = 0;
             while (true)
             {
+                timer.Restart();
                 cam.RetrieveBuffer(mImage);
                 unsafe
                 {
                     IntPtr p = (IntPtr)mImage.data;
                     Image<Gray, Byte> orig = new Image<Gray, Byte>(1024, 1024, (int)mImage.stride, p);
+                    
                     if (!processing)
                     {
                         processing = true;
@@ -109,11 +115,8 @@ namespace WallVizOpenCV
                         drops++;
                     }
                 }
+                times[0] = timer.ElapsedMilliseconds;
             }
-            //timer.Stop();
-            //Console.WriteLine("Time taken by non-sequential capture: {0}ms ({1}ms per). Dropped frames: {2}/{3}", 
-            //    timer.ElapsedMilliseconds, timer.ElapsedMilliseconds / (float)count, drops, count);
-            //cam.StopCapture();
         }
 
         // This is just here for comparison: OnNewFrame() happens in same thread, everything is sequential.
@@ -147,10 +150,12 @@ namespace WallVizOpenCV
         private void OnUITimerTick(object sender, EventArgs e)
         {
             msRetrieveBuffer.Text = "RetrieveBuffer: " + times[0];
-            msConvertImg.Text = "Convert Img: " + times[1];
-            msFilters.Text = "Filters: " + times[2];
-            msBlobDetection.Text = "Blob Detection: " + times[3];
+            msConvertImg.Text = "Filters: " + times[1];
+            msFilters.Text = "BLob Detection: " + times[2]; 
+            msBlobDetection.Text = "Blob Tracking: " + times[3];
             msTotal.Text = "Total ms: " + times[4] + " (FPS: " + fps + ")";
+
+            Application.DoEvents();
         }
 
         private void SetupImageBoxes()
@@ -172,7 +177,7 @@ namespace WallVizOpenCV
         {
             uiTimer = new DispatcherTimer(DispatcherPriority.SystemIdle);
             uiTimer.Tick += new EventHandler(OnUITimerTick);
-            uiTimer.Interval = TimeSpan.FromMilliseconds(1000);
+            uiTimer.Interval = TimeSpan.FromMilliseconds(100);
             uiTimer.Start();
         }
 

@@ -69,6 +69,11 @@ namespace WallVizOpenCV
             ResultImage._ThresholdBinary(minThresh, maxThresh);
         }
 
+        public void SetResult(Image<Gray, Byte> image)
+        {
+            ResultImage = image;
+        }
+
         public void SetBalance(Image<Gray, Byte> image)
         {
             BalanceImg = image;
