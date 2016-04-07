@@ -14,6 +14,7 @@ using FlyCapture2Managed;
 using Emgu.CV.Cvb;
 using System.Windows.Threading;
 using System.Threading;
+using WallVizOpenCV.BlobTracker;
 
 namespace WallVizOpenCV
 {
@@ -35,14 +36,15 @@ namespace WallVizOpenCV
         private DispatcherTimer uiTimer;
         float[] times = new float[] { 0f, 0f, 0f, 0f, 0f };
         private bool processing = false;
-        private BlobTracker tracker = new BlobTracker();
+        private BlobTrackerImpl tracker = new BlobTrackerImpl();
 
         public Form1()
         {
             InitializeComponent();
-            SetupImageBoxes();
-            SetupUITimer();
-            RunCamera();
+            BlobTrackerSampleData.Simulate();
+            //SetupImageBoxes();
+            //SetupUITimer();
+            //RunCamera();
         }
 
         // Debug info.

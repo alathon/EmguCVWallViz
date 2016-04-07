@@ -76,6 +76,14 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Accord, Version=3.0.2.0, Culture=neutral, PublicKeyToken=fa1a88e29555ccf7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dlls\Accord.dll</HintPath>
+    </Reference>
+    <Reference Include="Accord.MachineLearning, Version=3.0.2.0, Culture=neutral, PublicKeyToken=fa1a88e29555ccf7, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>dlls\Accord.MachineLearning.dll</HintPath>
+    </Reference>
     <Reference Include="Emgu.CV.UI">
       <HintPath>dlls\Emgu.CV.UI.dll</HintPath>
     </Reference>
@@ -98,7 +106,9 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BlobTracker.cs" />
+    <Compile Include="BlobTracker\BlobEvent.cs" />
+    <Compile Include="BlobTracker\BlobTracker.cs" />
+    <Compile Include="BlobTracker\BlobTrackerInterop.cs" />
     <Compile Include="FilteredImage.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
