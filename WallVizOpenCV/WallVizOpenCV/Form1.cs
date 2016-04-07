@@ -42,7 +42,7 @@ namespace WallVizOpenCV
         {
             InitializeComponent();
             SetupImageBoxes();
-            /SetupUITimer();
+            SetupUITimer();
             RunCamera();
         }
 
