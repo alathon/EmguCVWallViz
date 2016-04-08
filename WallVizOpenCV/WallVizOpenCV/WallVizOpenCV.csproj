@@ -107,8 +107,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlobTracker\BlobEvent.cs" />
-    <Compile Include="BlobTracker\BlobTracker.cs" />
+    <Compile Include="BlobTracker\BlobTrackerImpl.cs" />
     <Compile Include="BlobTracker\BlobTrackerInterop.cs" />
+    <Compile Include="BlobTracker\BlobTrackerSampleData.cs" />
     <Compile Include="FilteredImage.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>

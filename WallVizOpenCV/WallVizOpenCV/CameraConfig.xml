@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Cameras>
+  <Camera serialNumber="15307454">
+    <Format7>
+      <Width>1024</Width>
+      <Height>1024</Height>
+      <OffsetX>0</OffsetX>
+      <OffsetY>0</OffsetY>
+    </Format7>
+    <GrabTimeoutMs>5000</GrabTimeoutMs>
+    <Properties>
+      <Exposure>
+        <AutoManualMode>false</AutoManualMode>
+        <AbsControl>true</AbsControl>
+        <AbsValue>-0.415f</AbsValue>
+      </Exposure>
+      <Brightness>
+        <AutoManualMode>false</AutoManualMode>
+        <AbsControl>true</AbsControl>
+        <AbsValue>2.5f</AbsValue>
+      </Brightness>
+      <Sharpness>
+        <AutoManualMode>false</AutoManualMode>
+        <ValueA>1024</ValueA>
+      </Sharpness>
+      <Gamma>
+        <AutoManualMode>false</AutoManualMode>
+        <AbsControl>true</AbsControl>
+        <AbsValue>1.620f</AbsValue>
+      </Gamma>
+      <Gain>
+        <AutoManualMode>false</AutoManualMode>
+        <AbsControl>true</AbsControl>
+        <AbsValue>2.5f</AbsValue>
+      </Gain>
+      <Shutter>
+        <AutoManualMode>false</AutoManualMode>
+        <AbsControl>true</AbsControl>
+        <AbsValue>2f</AbsValue>
+      </Shutter>
+    </Properties>
+  </Camera>
+</Cameras>

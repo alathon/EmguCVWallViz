@@ -41,9 +41,10 @@ namespace WallVizOpenCV
         public Form1()
         {
             InitializeComponent();
-            SetupImageBoxes();
-            SetupUITimer();
-            RunCamera();
+            BlobTrackerSampleData.Simulate();
+            //SetupImageBoxes();
+            //SetupUITimer();
+            //RunCamera();
         }
 
         // Debug info.
