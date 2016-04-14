@@ -27,14 +27,14 @@ namespace WallVizOpenCV
             Ready = false;
             this.softwareTrigger = softwareTrigger;
             this.serialNumber = serial;
-            busMgr = new ManagedBusManager();
-            cam = new ManagedCamera();
-            ConnectToCamera();
             try
             {
+                busMgr = new ManagedBusManager();
+                cam = new ManagedCamera();
+                ConnectToCamera();
                 Configure();
             }
-            catch (FC2Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("FC2 Exception: " + ex);
             }

@@ -47,7 +47,7 @@ namespace WallVizOpenCV.BlobTracker
          */
         private BlobEvent[] track(double[][] frame)
         {      
-            double maxRadius = 1f; // max distance between two blobs for them to be considered the same.
+            double maxRadius = 200f; // max distance between two blobs for them to be considered the same.
             
             // DOWN EVENTS
             // For each location in frame, add a new DOWN BlobEvent.
@@ -109,6 +109,8 @@ namespace WallVizOpenCV.BlobTracker
 
                 // UP EVENTS
                 // All previous blobs which are NOT tracked, have disappeared.
+                // TODO: Allow blobs to go untracked for X frames, in case we drop some. Otherwise, touch is too sensitive
+                // to momentarily not detecting a finger.
                 foreach (BlobEvent evt in lastBlobEvents)
                 {
                     if (!trackedBlobs.Contains(evt) && evt.Event != BlobEventType.Up)

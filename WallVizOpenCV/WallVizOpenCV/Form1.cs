@@ -1,10 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using System.Diagnostics;
 using Emgu.CV;
@@ -13,79 +8,122 @@ using System.Threading.Tasks;
 using FlyCapture2Managed;
 using Emgu.CV.Cvb;
 using System.Windows.Threading;
-using System.Threading;
 using WallVizOpenCV.BlobTracker;
+using WallVizOpenCV.ConnexionServer;
+using Connexion.Tcp;
 
 namespace WallVizOpenCV
 {
     public partial class Form1 : Form
     {
-        private long fps = 0;
-        private int blobAreaMin = 50;
-        private int blobAreaMax = 200;
-        private int kernelSize = 7;
+        // Blob tracking & Detection.
+        private BlobTrackerImpl tracker = new BlobTrackerImpl();
         private CvBlobDetector bDetect = new Emgu.CV.Cvb.CvBlobDetector();
+        private int blobAreaMin = 50;
+        private int blobAreaMax = 300;
         private Gray minGray = new Gray(80);
         private Gray maxGray = new Gray(255);
-        private FilteredImage filteredImage = new FilteredImage(true, 5, 120);
-        private ManagedImage mImage = new ManagedImage();
-        private ManagedImage dest = new ManagedImage();
+        
+        // Managed image(s).
+        private FilteredImage filteredImage = new FilteredImage(5, 120);
+        private ManagedImage camImage = new ManagedImage();
+        private ManagedImage camImageCopy = new ManagedImage();
+        private Image<Gray, Byte> emguCvCamImage = new Image<Gray, byte>(1024, 1024);
+        private Image<Bgr, Byte> detectedBlobsImage = new Image<Bgr, byte>(1024, 1024);
+
+        // Timers.
         private Stopwatch processStopwatch = new Stopwatch();
         private Stopwatch cameraStopwatch = new Stopwatch();
-        private CvBlobs blobs = new CvBlobs();
+        private int updateCounter = 0;
         private DispatcherTimer uiTimer;
         float[] times = new float[] { 0f, 0f, 0f, 0f, 0f };
+
+        // Networking
+        private Server connexionServer;
+
+        // Other.
+        private long fps = 0;
         private bool processing = false;
-        private BlobTrackerImpl tracker = new BlobTrackerImpl();
 
         public Form1()
         {
             InitializeComponent();
-            BlobTrackerSampleData.Simulate();
-            //SetupImageBoxes();
-            //SetupUITimer();
-            //RunCamera();
+            SetupImageBoxes();
+            SetupUITimer();
+            RunCamera();
+            SetupServer("127.0.0.1", 10001);
+            StartServer();
         }
-
-        // Debug info.
-        private void parseBlobs(CvBlobs blobs)
+        
+        private void StartServer()
         {
-            //Console.WriteLine("Detected {0} blobs.", blobs.Count);
-            foreach(CvBlob blob in blobs.Values) {
-                Console.WriteLine("Blob: {0}", blob.Centroid);
-            }
+            this.connexionServer.Start();
+            Console.WriteLine("WallViz Touch Server started.");
         }
 
-        private void UpdateImageBoxes()
+        private void StopServer()
+        {
+            this.connexionServer.Stop();
+            Console.WriteLine("WallViz Touch Server stopped.");
+        }
+
+        private void SetupServer(String ip, int port)
+        {
+            System.Net.IPAddress addr = System.Net.IPAddress.Parse(ip);
+            this.connexionServer = new Server("WallViz Touch Server", addr, port);
+        }
+        
+        private void SetImageBoxes()
         {
             imageBox1.Image = this.filteredImage.BalanceImg;
             imageBox2.Image = this.filteredImage.CurrentImage;
             imageBox3.Image = this.filteredImage.DiffImage;
-            imageBox4.Image = this.filteredImage.ResultImage; 
+            imageBox4.Image = this.detectedBlobsImage;
         }
 
         // Process a frame -> Detect blobs, track blobs, send off TUIO events.
-        private void OnNewFrame(Image<Gray, Byte> image)
+        private void OnNewFrame()
         {
-            if(!processing) return;
-
-            if (this.filteredImage.BalanceImg == null)
+            if (emguCvCamImage == null)
             {
-                this.filteredImage.SetBalance(image.Clone());
+                processing = false;
+            }
+            if (!processing)
+            {
+                return;
             }
             processStopwatch.Restart();
-            this.filteredImage.SetFrame(image);
+            this.filteredImage.SetFrame(emguCvCamImage);
+                
             times[1] = processStopwatch.ElapsedMilliseconds;
+            CvBlobs blobs = new CvBlobs();
+            
             bDetect.Detect(this.filteredImage.ResultImage, blobs);
-            bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.Default, 0.75f);
-            //blobs.FilterByArea(blobAreaMin, blobAreaMax);
-            times[2] = processStopwatch.ElapsedMilliseconds;
-            //var blobEvents = tracker.NewFrame(blobs);
-            UpdateImageBoxes();
-            processing = false;
+            blobs.FilterByArea(blobAreaMin, blobAreaMax);
+            
+            times[2] = processStopwatch.ElapsedMilliseconds - times[1];
 
-            // Simulate delay.
-            Thread.Sleep(7);
+            // Update display images every nth picture.
+            if ((++updateCounter % 3) == 0)
+            {
+                detectedBlobsImage.Data = bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.Default, 0.75f).Data;
+                SetImageBoxes();
+                updateCounter = 0;
+            }
+            var now = processStopwatch.ElapsedMilliseconds;
+            BlobEvent[] blobEvents = tracker.NewFrame(BlobTrackerInterop.FrameFromCvBlobs(blobs));
+            this.BroadcastBlobs(blobEvents);
+            times[3] = processStopwatch.ElapsedMilliseconds - now;
+            processing = false;
+        }
+
+        private void BroadcastBlobs(BlobEvent[] blobs)
+        {
+            if(blobs.Length > 0)
+            {
+                Connexion.Message msg = new Connexion.Message("BlobEvents");
+                this.connexionServer.BroadcastMessage(TransferableArray.Encode<BlobEvent>(msg, "blobs", new List<BlobEvent>(blobs)));
+            }
         }
 
         // Background capture where OnNewFrame() is handed off to a new Task.
@@ -100,22 +138,22 @@ namespace WallVizOpenCV
             while (true)
             {
                 timer.Restart();
-                cam.RetrieveBuffer(mImage);
-                unsafe
+                cam.RetrieveBuffer(camImage);
+                if (!processing)
                 {
-                    IntPtr p = (IntPtr)mImage.data;
-                    Image<Gray, Byte> orig = new Image<Gray, Byte>(1024, 1024, (int)mImage.stride, p);
-                    
-                    if (!processing)
+                    processing = true;
+                    camImage.Convert(camImage.pixelFormat, camImageCopy);
+                    unsafe
                     {
-                        processing = true;
-                        Task.Factory.StartNew(() => OnNewFrame(orig.Clone()));
+                        IntPtr p = (IntPtr)camImageCopy.data;
+                        emguCvCamImage = new Image<Gray, Byte>(1024, 1024, (int)camImageCopy.stride, p);
                         current++;
+                        Task.Factory.StartNew(() => OnNewFrame());
                     }
-                    else
-                    {
-                        drops++;
-                    }
+                }
+                else
+                {
+                    drops++;
                 }
                 times[0] = timer.ElapsedMilliseconds;
             }
@@ -130,17 +168,16 @@ namespace WallVizOpenCV
             timer.Start();
             while (current < count)
             {
-                cam.RetrieveBuffer(mImage);
+                cam.RetrieveBuffer(camImage);
                 unsafe
                 {
-                    IntPtr p = (IntPtr)mImage.data;
-                    Image<Gray, Byte> orig = new Image<Gray, Byte>(1024, 1024, (int)mImage.stride, p);
+                    IntPtr p = (IntPtr)camImage.data;
+                    Image<Gray, Byte> orig = new Image<Gray, Byte>(1024, 1024, (int)camImage.stride, p);
                     processing = true;
                     long before = timer.ElapsedMilliseconds;
-                    OnNewFrame(orig.Clone());
+                    OnNewFrame();
                     long now = timer.ElapsedMilliseconds;
                     processing = false;
-                    //Console.WriteLine("Frame processing: {0}ms", now - before);
                 }
                 current++;
             }
@@ -170,6 +207,7 @@ namespace WallVizOpenCV
 
         private void RunCamera()
         {
+            
             PointGreyCamera cam = new PointGreyCamera(15307454, true);
             Task.Factory.StartNew(() => otherBackgroundCapture(cam), TaskCreationOptions.LongRunning);
                 //.ContinueWith((antecedent) => seqBackgroundCapture(cam, 1000));
