@@ -13,11 +13,9 @@ namespace WallVizOpenCV
 {
     public class FilteredImage
     {
-        public FilteredImage(int kernelSize, int binaryThreshold)
+        public FilteredImage(int kernelSize)
         {
             this.kernelSize = kernelSize;
-            this.minThresh = new Gray(binaryThreshold);
-            this.maxThresh = new Gray(255);
             this.BalanceImg = new Image<Gray, byte>(new Size(1024, 1024));
             this.ResultImage = new Image<Gray, byte>(new Size(1024, 1024));
             this.DiffImage = new Image<Gray, byte>(new Size(1024, 1024));
@@ -26,19 +24,7 @@ namespace WallVizOpenCV
 
         private bool balanceSet = false;
         private int kernelSize;
-        private Gray minThresh;
-        private Gray maxThresh;
-
-        public void SetThreshold(int v)
-        {
-            this.minThresh = new Gray(v);
-        }
-
-        public void SetKernelSize(int v)
-        {
-            this.kernelSize = v;
-        }
-
+        
         public Image<Gray, Byte> BalanceImg
         {
             get;
@@ -59,68 +45,52 @@ namespace WallVizOpenCV
             get;
             private set;
         }
-
-        private void BinaryThreshResultImage(Image<Gray, Byte> img)
+        
+        private void applyGaussianBlur(Image<Gray, Byte> from, Image<Gray, Byte> to)
         {
-            double[] t = minThresh.MCvScalar.ToArray();
-            double[] m = maxThresh.MCvScalar.ToArray();
-            CvInvoke.Threshold(img, ResultImage, t[0], m[0], Emgu.CV.CvEnum.ThresholdType.Binary);
+            CvInvoke.GaussianBlur(from, to, new Size(kernelSize, kernelSize), 0, 0);
         }
-
 
         public void SetBalance(Image<Gray, Byte> image)
         {
-            CvInvoke.GaussianBlur(image, BalanceImg, new Size(kernelSize, kernelSize), 0, 0);
+            applyGaussianBlur(image, BalanceImg);
         }
-
-        public Mat cur = new Mat(new Size(1024, 1024), Emgu.CV.CvEnum.DepthType.Cv8U, 1);
-        public Mat balance = new Mat(new Size(1024, 1024), Emgu.CV.CvEnum.DepthType.Cv8U, 1);
-        public Mat diff = new Mat(new Size(1024, 1024), Emgu.CV.CvEnum.DepthType.Cv8U, 1);
-        public Mat res = new Mat(new Size(1024, 1024), Emgu.CV.CvEnum.DepthType.Cv8U, 1);
-        public Image<Gray, Byte> resImage;
         
         public void SetFrame(Image<Gray, Byte> image)
         {
-            CvInvoke.GaussianBlur(image, CurrentImage, new Size(kernelSize, kernelSize), 0, 0);
+            applyGaussianBlur(image, CurrentImage);
 
             if (!balanceSet)
             {
+                // Set balance image. Only happens once.
+                // Screen should be absolutely clear of any touching when it is set.
                 balanceSet = true;
                 BalanceImg = CurrentImage.Clone();
             }
-
+            
+            // Create diff image.
             CvInvoke.AbsDiff(CurrentImage, BalanceImg, DiffImage);
-            using (ScalarArray ialower = new ScalarArray(new Gray(25).MCvScalar))
-            using (ScalarArray iaupper = new ScalarArray(new Gray(60).MCvScalar))
-                CvInvoke.InRange(DiffImage, ialower, iaupper, DiffImage);
-            // TODO: Consider equalizing the DiffImage, to stretch out the histogram and get more control over where to cut off.
+            
+            // Amplify image.
+            DiffImage *= 7f;
 
-            double[] t = minThresh.MCvScalar.ToArray();
-            double[] m = maxThresh.MCvScalar.ToArray();
-            CvInvoke.Threshold(DiffImage, ResultImage, t[0], m[0], Emgu.CV.CvEnum.ThresholdType.Binary);
+            // Find max intensity.
+            double minVal = 0f;
+            double maxVal = 0f;
+            Point minLoc = Point.Empty;
+            Point maxLoc = Point.Empty;
+            CvInvoke.MinMaxLoc(DiffImage, ref minVal, ref maxVal, ref minLoc, ref maxLoc);
+
+            // BInarize based on the most intense pixel in image, which is assumed to be fingertips or something else
+            // touching the screen.
+            // If it is not sensitive enough, lower minIntensity. If it is too sensitive, raise minIntensity.
+            // You can also tweak the multipliers below to adjust how much pixels can deviate from the found value and
+            // still be considered valid. Right now its +- 25%
+            double minIntensity = 75f;
+            double intensity = Math.Max(maxVal, minIntensity);
+            using (ScalarArray ialower = new ScalarArray(new Gray(intensity * 0.75f).MCvScalar))
+            using (ScalarArray iaupper = new ScalarArray(new Gray(intensity * 1.25f).MCvScalar))
+                CvInvoke.InRange(DiffImage, ialower, iaupper, ResultImage);
         }
-        /*
-        public void SetFrame(Image<Gray, Byte> image)
-        {
-            CvInvoke.GaussianBlur(image, cur, new Size(kernelSize, kernelSize), 0, 0);
-
-            if (!balanceSet)
-            {
-                balanceSet = true;
-                balance = cur.Clone();
-            }
-
-            CvInvoke.AbsDiff(cur, balance, diff);
-            using (ScalarArray ialower = new ScalarArray(new Gray(25).MCvScalar))
-            using (ScalarArray iaupper = new ScalarArray(new Gray(60).MCvScalar))
-                CvInvoke.InRange(diff, ialower, iaupper, diff);
-            // TODO: Consider equalizing the DiffImage, to stretch out the histogram and get more control over where to cut off.
-
-            double[] t = minThresh.MCvScalar.ToArray();
-            double[] m = maxThresh.MCvScalar.ToArray();
-            CvInvoke.Threshold(diff, res, t[0], m[0], Emgu.CV.CvEnum.ThresholdType.Binary);
-
-            //ResultImage = res.ToImage<Gray, Byte>();
-        }*/
     }
 }

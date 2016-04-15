@@ -25,7 +25,7 @@ namespace WallVizOpenCV
         private Gray maxGray = new Gray(255);
         
         // Managed image(s).
-        private FilteredImage filteredImage = new FilteredImage(5, 120);
+        private FilteredImage filteredImage = new FilteredImage(5);
         private ManagedImage camImage = new ManagedImage();
         private ManagedImage camImageCopy = new ManagedImage();
         private Image<Gray, Byte> emguCvCamImage = new Image<Gray, byte>(1024, 1024);
@@ -75,9 +75,9 @@ namespace WallVizOpenCV
         
         private void SetImageBoxes()
         {
-            imageBox1.Image = this.filteredImage.BalanceImg;
-            imageBox2.Image = this.filteredImage.CurrentImage;
-            imageBox3.Image = this.filteredImage.DiffImage;
+            imageBox1.Image = this.filteredImage.CurrentImage.Clone();
+            imageBox2.Image = this.filteredImage.DiffImage.Clone();
+            imageBox3.Image = this.filteredImage.ResultImage.Clone();
             imageBox4.Image = this.detectedBlobsImage;
         }
 
@@ -106,7 +106,7 @@ namespace WallVizOpenCV
             // Update display images every nth picture.
             if ((++updateCounter % 3) == 0)
             {
-                detectedBlobsImage.Data = bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.Default, 0.75f).Data;
+                detectedBlobsImage.Data = bDetect.DrawBlobs(this.filteredImage.ResultImage, blobs, CvBlobDetector.BlobRenderType.Default, 1f).Data;
                 SetImageBoxes();
                 updateCounter = 0;
             }
